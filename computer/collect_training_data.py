@@ -2,7 +2,7 @@ __author__ = 'zhengwang'
 
 import numpy as np
 import cv2
-import serial
+import sys
 import pygame
 from pygame.locals import *
 import socket
@@ -13,17 +13,34 @@ import os
 class CollectTrainingData(object):
     
     def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((400, 400))
 
         self.server_socket = socket.socket()
         self.server_socket.bind(('192.168.1.100', 8000))
         self.server_socket.listen(0)
 
+        self.BUF_SIZE = 1024
+        self.server_addr = ('192.168.1.103',8888)
+
+        try:
+            self.client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        except socket.error,msg:
+            print "Creating Socket Failure. Error Code : " + str(msg[0]) + " Message : " + msg[1]
+            sys.exit()
+        self.client.connect(self.server_addr)
+        self.forward = "Forward"
+        self.backward = "Backward"
+        self.left = "Left"
+        self.right = "Right"
+        #Trick = "Trick"
+
+
+        #-------
         # accept a single connection
         self.connection = self.server_socket.accept()[0].makefile('rb')
 
-        # connect to a seral port
-        self.ser = serial.Serial('/dev/tty.usbmodem1421', 115200, timeout=1)
-        self.send_inst = True
+
 
         # create labels
         self.k = np.zeros((4, 4), 'float')
@@ -31,7 +48,7 @@ class CollectTrainingData(object):
             self.k[i, i] = 1
         self.temp_label = np.zeros((1, 4), 'float')
 
-        pygame.init()
+
         self.collect_image()
 
     def collect_image(self):
@@ -77,29 +94,8 @@ class CollectTrainingData(object):
                     for event in pygame.event.get():
                         if event.type == KEYDOWN:
                             key_input = pygame.key.get_pressed()
-
-                            # complex orders
-                            if key_input[pygame.K_UP] and key_input[pygame.K_RIGHT]:
-                                print("Forward Right")
-                                image_array = np.vstack((image_array, temp_array))
-                                label_array = np.vstack((label_array, self.k[1]))
-                                saved_frame += 1
-                                self.ser.write(chr(6))
-
-                            elif key_input[pygame.K_UP] and key_input[pygame.K_LEFT]:
-                                print("Forward Left")
-                                image_array = np.vstack((image_array, temp_array))
-                                label_array = np.vstack((label_array, self.k[0]))
-                                saved_frame += 1
-                                self.ser.write(chr(7))
-
-                            elif key_input[pygame.K_DOWN] and key_input[pygame.K_RIGHT]:
-                                print("Reverse Right")
-                                self.ser.write(chr(8))
-                            
-                            elif key_input[pygame.K_DOWN] and key_input[pygame.K_LEFT]:
-                                print("Reverse Left")
-                                self.ser.write(chr(9))
+                            if key_input[K_ESCAPE]:
+                                sys.exit()
 
                             # simple orders
                             elif key_input[pygame.K_UP]:
@@ -107,37 +103,33 @@ class CollectTrainingData(object):
                                 saved_frame += 1
                                 image_array = np.vstack((image_array, temp_array))
                                 label_array = np.vstack((label_array, self.k[2]))
-                                self.ser.write(chr(1))
+                                self.client.sendall(self.forward)
 
                             elif key_input[pygame.K_DOWN]:
                                 print("Reverse")
                                 saved_frame += 1
                                 image_array = np.vstack((image_array, temp_array))
                                 label_array = np.vstack((label_array, self.k[3]))
-                                self.ser.write(chr(2))
+                                self.client.sendall(self.backward)
                             
                             elif key_input[pygame.K_RIGHT]:
                                 print("Right")
                                 image_array = np.vstack((image_array, temp_array))
                                 label_array = np.vstack((label_array, self.k[1]))
                                 saved_frame += 1
-                                self.ser.write(chr(3))
+                                self.client.sendall(self.right)
 
                             elif key_input[pygame.K_LEFT]:
                                 print("Left")
                                 image_array = np.vstack((image_array, temp_array))
                                 label_array = np.vstack((label_array, self.k[0]))
                                 saved_frame += 1
-                                self.ser.write(chr(4))
+                                self.client.sendall(self.left)
 
-                            elif key_input[pygame.K_x] or key_input[pygame.K_q]:
-                                print 'exit'
-                                self.send_inst = False
-                                self.ser.write(chr(0))
+
                                 break
                                     
-                        elif event.type == pygame.KEYUP:
-                            self.ser.write(chr(0))
+
 
             # save training images and labels
             train = image_array[1:, :]

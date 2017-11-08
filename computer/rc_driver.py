@@ -137,9 +137,9 @@ class SensorDataHandler(SocketServer.BaseRequestHandler):
                 self.data = self.request.recv(1024)
                 sensor_data = round(float(self.data), 1)
                 #print "{} sent:".format(self.client_address[0])
-                print sensor_data
+                print (sensor_data)
         finally:
-            print "Connection closed on thread 2"
+            print ("Connection closed on thread 2")
 
 
 class VideoStreamHandler(SocketServer.StreamRequestHandler):

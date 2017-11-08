@@ -1,15 +1,61 @@
+#coding=utf-8
 __author__ = 'zhengwang'
-
-import serial
+import sys
+import socket
 import pygame
+import threading
+import struct
 from pygame.locals import *
+#Receive message
+class Receiver(threading.Thread):
+    def __init__(self,threadName,window):
+        threading.Thread.__init__(self)
+        self.threadName = threadName
+        self.window = window
+        self.timeToQuit = threading.Event()
+        self.timeToQuit.clear()
+        #连接服务器
+        # Create a socket (SOCK_STREAM means a TCP socket)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            # Connect to server and send data
+            self.sock.connect((self.window.host, self.window.port))
+            self.window.LogMessage("连接服务器成功...\n")
+            self.runT = True
+        except Exception:
+            self.window.LogMessage("连接服务器失败...\n")
+            self.sock.close()
 
+    def stop(self):
+        self.window.LogMessage("关闭Socket连接...\n")
+        self.sock.close()
+        self.runT = False
+        self.timeToQuit.set()
+
+    def sendMsg(self,msg):
+        logMsg = (u"发送：%s\n" % (msg))
+        self.window.LogMessage(logMsg)
+        self.sock.sendall(msg)
+
+    def run(self):
+        try:
+            while self.runT:
+                data = self.sock.recv(4)
+                if data:
+                    dataLen, = struct.unpack_from("i",data)
+                    wx.CallAfter(self.window.LogMessage,(u"返回数据长度:%s\n" % (dataLen)))
+                    wx.CallAfter(self.window.LogMessage,(u"返回数据:%s\n" % (self.sock.recv(dataLen))))
+        except Exception:
+            pass
 
 class RCTest(object):
 
     def __init__(self):
+        
+
+
         pygame.init()
-        self.ser = serial.Serial('/dev/tty.usbmodem1421', 115200, timeout=1)
+        screen = pygame.display.set_mode((500, 500))
         self.send_inst = True
         self.steer()
 
@@ -20,50 +66,52 @@ class RCTest(object):
                 if event.type == KEYDOWN:
                     key_input = pygame.key.get_pressed()
 
-                    # complex orders
-                    if key_input[pygame.K_UP] and key_input[pygame.K_RIGHT]:
-                        print("Forward Right")
-                        self.ser.write(chr(6))
-
-                    elif key_input[pygame.K_UP] and key_input[pygame.K_LEFT]:
-                        print("Forward Left")
-                        self.ser.write(chr(7))
-
-                    elif key_input[pygame.K_DOWN] and key_input[pygame.K_RIGHT]:
-                        print("Reverse Right")
-                        self.ser.write(chr(8))
-
-                    elif key_input[pygame.K_DOWN] and key_input[pygame.K_LEFT]:
-                        print("Reverse Left")
-                        self.ser.write(chr(9))
-
+                    if key_input[K_ESCAPE]:
+                        sys.exit()
                     # simple orders
-                    elif key_input[pygame.K_UP]:
+                    if key_input[pygame.K_UP]:
                         print("Forward")
-                        self.ser.write(chr(1))
+                        #self.forward()
+                        #self.ser.write(chr(1))
 
                     elif key_input[pygame.K_DOWN]:
                         print("Reverse")
-                        self.ser.write(chr(2))
+                        #self.back()
+                        #self.ser.write(chr(2))
 
                     elif key_input[pygame.K_RIGHT]:
                         print("Right")
-                        self.ser.write(chr(3))
+                        #self.right()
+                        #self.ser.write(chr(3))
 
                     elif key_input[pygame.K_LEFT]:
                         print("Left")
-                        self.ser.write(chr(4))
+                        #self.left()
+                        #self.ser.write(chr(4))
+                    elif event.type == QUIT:
+                        sys.exit()
 
-                    # exit
-                    elif key_input[pygame.K_x] or key_input[pygame.K_q]:
-                        print 'Exit'
-                        self.send_inst = False
-                        self.ser.write(chr(0))
-                        self.ser.close()
-                        break
+                        
 
-                elif event.type == pygame.KEYUP:
-                    self.ser.write(chr(0))
+
+    def forward(self,event):
+        self.thread.sendMsg("forward")
+
+    def back(self,event):
+        self.thread.sendMsg("back")
+
+    def left(self,event):
+        self.thread.sendMsg("left")
+
+    def right(self,event):
+        self.thread.sendMsg("right")
+
+    def stop(self,event):
+        self.thread.sendMsg("stop")
+                    
+
+
 
 if __name__ == '__main__':
+    #Receiver()
     RCTest()
