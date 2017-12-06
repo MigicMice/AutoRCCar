@@ -1,5 +1,5 @@
 __author__ = 'zhengwang'
-
+import threading
 import numpy as np
 import cv2
 import sys
@@ -15,13 +15,13 @@ class CollectTrainingData(object):
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((400, 400))
-
+        #self.pyg = threading.Thread(target=,name='pyagme')
         self.server_socket = socket.socket()
-        self.server_socket.bind(('192.168.1.100', 8000))
+        self.server_socket.bind(('127.0.0.1', 8000))
         self.server_socket.listen(0)
 
         self.BUF_SIZE = 1024
-        self.server_addr = ('192.168.1.103',8888)
+        self.server_addr = ('127.0.0.1',8888)
 
         try:
             self.client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -33,6 +33,7 @@ class CollectTrainingData(object):
         self.backward = "Backward"
         self.left = "Left"
         self.right = "Right"
+        self.nothing = ""
         #Trick = "Trick"
 
 
@@ -48,8 +49,8 @@ class CollectTrainingData(object):
             self.k[i, i] = 1
         self.temp_label = np.zeros((1, 4), 'float')
 
-
-        self.collect_image()
+        self.colim = threading.Thread(target=self.collect_image(), name='collect')
+        #self.collect_image()
 
     def collect_image(self):
 
@@ -125,7 +126,8 @@ class CollectTrainingData(object):
                                 label_array = np.vstack((label_array, self.k[0]))
                                 saved_frame += 1
                                 self.client.sendall(self.left)
-
+                            elif event.type == pygame.KEYUP:
+                                self.client.sendall(self.nothing)
 
                                 break
                                     
